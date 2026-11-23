@@ -1,0 +1,43 @@
+name: Build APK
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unzip project
+        run: |
+          ZIP=$(ls *.zip | head -n1)
+          echo "Using $ZIP"
+          mkdir -p "$RUNNER_TEMP/src"
+          unzip -q "$ZIP" -d "$RUNNER_TEMP/src"
+          GRADLE_FILE=$(find "$RUNNER_TEMP/src" -maxdepth 3 -name settings.gradle.kts | head -n1)
+          echo "SRC=$(dirname "$GRADLE_FILE")" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 9.3.1
+
+      - name: Build debug APK
+        run: |
+          cd "$SRC"
+          gradle assembleDebug --stacktrace
+          mkdir -p "$GITHUB_WORKSPACE/out"
+          cp app/build/outputs/apk/debug/*.apk "$GITHUB_WORKSPACE/out/"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ss-vpn-debug-apk
+          path: out/*.apk
